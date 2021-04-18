@@ -72,3 +72,8 @@ _IniWrite(value, filename, section, key)
     IniWrite, %value%, %filename%, %section%, %key%
     Return 1
 }
+
+BGRtoRGB(rgb)
+{
+    
+}

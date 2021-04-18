@@ -1,9 +1,16 @@
 ﻿; To-DO:
-; Dynamic Spell List
-; Spell List with Priority Selectable
-; Pointer Setters
-; Clean Up a little bit 
-; Create Timers in a Object for each Spell in SpellList when the Guide is Enabled
+; [X] Dynamic Module Loading
+; [ ] Set Module Standards Example for Users to create their modules based on it
+; [ ] Load Module Description from Descriptor
+; [ ] Implement Basic Modules
+;     [ ] Target Finder
+;     [ ] ?
+; [ ] Dynamic Spell List
+; [ ] Spell List with Priority Selectable
+; [ ] Create Timers in a Object for each Spell in SpellList when the Guide is Enabled
+; [X] Pointer Setters
+; [x] Clean Up a little bit 
+
 
 #NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
 ; #Warn  ; Enable warnings to assist with detecting common errors.
@@ -12,7 +19,6 @@ SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 #SingleInstance, Force
 #Include, ../Utilities.ahk
 #Include, CombatFunctions.ahk
-#Include, SetterFunctions.ahk
 
 ;@Ahk2Exe-Set Version, 0.3.0
 ;@Ahk2Exe-Set Name, ArcherGuide
@@ -48,8 +54,28 @@ Global Pointers := { TargetPointer: targetPointer, SelfManaPointer: selfManaPoin
 ; Load Modules (To be done as an dynamic Module Loader in the future)
 ; Something like Modules := LoadModules(ModulesDirectory)
 ; The application should provide basic modules, like TargetFinder but should let Users create theirs and it will be Included in this region.HasKey(Key)
-Global Modules := { TargetFinder: _IniRead(ConfigFullPath, "EnabledModules", "TargetFinder") }
+Global Modules := {}
+Global ModulesArray := []
 
+; Load in ModulesArray with found modules at Modules folder.
+Loop, Files, Modules/*, D
+{
+    OutputDebug, % "Found a mod, inserting it on arr -> " A_LoopFileName
+
+    descriptor := { name: A_LoopFileName }
+    obj := { descriptor: descriptor, routine: A_LoopFileFullPath "/routine.ahk" }
+    ModulesArray.Push(obj)
+}
+
+; Store loaded ModulesArray into Global Modules Object for later use
+for key, obj in ModulesArray
+{
+    OutputDebug, % "Found a mod, inserting it on Module obj -> " obj.descriptor.name
+    Modules[obj.descriptor.name] := obj    
+    Modules[obj.descriptor.name].Enabled := _IniRead(ConfigFullPath, "EnabledModules", obj.descriptor.name)
+    OutputDebug, % "Dbg> " obj.descriptor.name
+    
+}
 
 ; -> Check if Targeted Game is Open
 Game_Handle := WinExist("ahk_class ArcheAge")
@@ -62,7 +88,7 @@ if (!Game_Handle) { ; If the targeted game isn't found, Exit.
 ; |=================================== GUI Setup ===================================|
 ; -> Create a GUI, name it by 1 and set it as LastFound to iterate with WinSet
 Gui, 1:New,     +HwndGui_Handle +AlwaysOnTop +Parent%Game_Handle% -Caption +LastFound
-Gui, Add, Tab3, x5 y30 w290 h230, Preferences|Spells|Pointers|Modules
+Gui, Add, Tab3, x5 y30 w290 h230 vTabManager , Preferences|Spells|Pointers|Modules
 Gui, Tab
 
 ; -> Define Gui1 Styles
@@ -72,7 +98,7 @@ WinSet, Style, +0x0         ; Adds WS_OVERLAPPED
 WinSet, Style, -0x10000     ; Removes WS_MAXIMIZE 
 WinSet, Style, -0x20000000  ; Removez WS_MINIMIZE 
 WinSet, Style, +0x800000    ; 
-Gui,    Color,  Gray        ; Set Main BG Color to Dark Blue
+; Gui,    Color,  Gray        ; Set Main BG Color to Dark Blue
 
 ; Non-tab specific Controls
 Gui, Tab
@@ -93,6 +119,7 @@ Gui, Add, Button, w100 h20 x190 y270 gSaveRoutine, Save ; Save Config Button
 
 ; GUI Menu
 #Include, GUI/Menu/MenuBar.ahk
+
 
 ; Show LastFound Gui
 Gui, Font, OxFFFFFF
@@ -125,7 +152,7 @@ Loop {
 
     if(WinActive("ahk_id" Game_Handle))
     {
-    ToolTip, % "Pointer x" targetPointer.x " | " targetPointer.y " | " targetPointer.c, 300, 25
+    ; ToolTip, % "Pointer x" targetPointer.x " | " targetPointer.y " | " targetPointer.c, 300, 25
         
         
         if (Current_State == state.ACTIVE)
@@ -368,22 +395,33 @@ AboutRoutine:
 ModuleChangedRoutine:
 {
     Gui, Submit, NoHide
-    ; In the future, I should check existent modules in a array and iterate their values (maybe?)
-
-    ; Update Module Checkboxes as they change and update Active Modules State
-    Modules := { TargetFinder: Checkbox_TargetFinder  }
+    
+    ; Modules Object Structure
+    ; Modules := {
+    ;     enabled := boolean
+    ;     descriptor := {
+    ;         name    := string
+    ;         author  := string
+    ;         version := string
+    ;     }
+    ;     routine := File_Path
+    ; }
 
     For key, value in Modules
     {
-        _IniWrite(value, ConfigFullPath, "EnabledModules", key)
+        if(key)
+        {
+            ; Updates current Module state into Modules object    
+            Modules[key].Enabled := Checkbox_%key%
+            OutputDebug, % key " is now " Modules[key].Enabled   
+            
+            _IniWrite(Modules[key].Enabled, ConfigFullPath, "EnabledModules", Modules[key].descriptor.name)
+                        
+            ; OutputDebug, % "Module." key ".descriptor.name: " Modules[key].descriptor.name
+            ; OutputDebug, % "Module." key ".Enabled: " Modules[key].Enabled
+            
+        }
     }
-
-    ; To-do
-    ; For key, value in modules 
-    ; {
-
-    ; }
-
     Return
 }
 
