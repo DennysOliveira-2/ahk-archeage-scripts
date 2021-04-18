@@ -1,4 +1,12 @@
-﻿#NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
+﻿; To-DO:
+; Update Control Text from each Pointer when they change
+; Dynamic Spell List
+; Spell List with Priority Selectable
+; Pointer Setters
+; Clean Up a little bit 
+; Create Timers in a Object for each Spell in SpellList when the Guide is Enabled
+
+#NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
 ; #Warn  ; Enable warnings to assist with detecting common errors.
 SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
@@ -79,7 +87,8 @@ For key, value in Pointers
 {
     color := SubStr(value.c, 3)
     Gui, Font, Bold
-    Gui, Add, Text, c%color%, % "X: [" value.x "] Y: [" value.y "] C: [" color  "]"
+    Gui, Add, Text, w200 vControl_Text%key% c%color%, % "X: [" value.x "] Y: [" value.y "] C: [" color  "]"
+    
     Gui, Font
     Gui, Add, Button, w120 gSet%key%Routine, Set %key%
     Gui, Font
@@ -543,8 +552,20 @@ SetDeathPointerRoutine:
 
 UpdateAllPointers()
 {
-    Gui, Submit, NoHide 
+    ; Update Text Control Appearance
+    For key, value in Pointers
+    {
+        color := value.c
+        
+        
+        Gui, Font, c%color% Bold
+        GuiControl, Font, Control_Text%key%
+        GuiControl, Text, Control_Text%key% , % "X: [" value.x "] Y: [" value.y "] C: [" value.c  "]"
+        
+        
+    }
     
+    Gui, Submit, NoHide     
 }
 
 ToggleAction:
