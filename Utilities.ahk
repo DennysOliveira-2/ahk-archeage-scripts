@@ -58,3 +58,17 @@ decToHex( int, pad=0 ) {
 
 	Return h
 }
+
+_IniRead(filename, section, key)
+{
+    IniRead, output, %filename%, %section%, %key% , null
+    Return %output%
+}
+
+_IniWrite(value, filename, section, key)
+{
+    extractedValue := %value%
+    
+    IniWrite, %value%, %filename%, %section%, %key%
+    Return 1
+}

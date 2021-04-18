@@ -1,5 +1,4 @@
 ﻿; To-DO:
-; Update Control Text from each Pointer when they change
 ; Dynamic Spell List
 ; Spell List with Priority Selectable
 ; Pointer Setters
@@ -15,17 +14,21 @@ SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 #Include, CombatFunctions.ahk
 #Include, SetterFunctions.ahk
 
-;@Ahk2Exe-Set Version, 0.2.0
-;@Ahk2Exe-Set Name, AAGodlyArcher
-;@Ahk2Exe-Set Description, ArcheAge Unchained Archer Virtualized Automation and Helper Software for Monster Grind.
+;@Ahk2Exe-Set Version, 0.3.0
+;@Ahk2Exe-Set Name, ArcherGuide
+;@Ahk2Exe-Set Description, ArcheAge Unchained Virtualized Automation and Helper Software for Monster Grinding
 ;@Ahk2Exe-SetMainIcon arrows.ico
 
+If (A_IsCompiled)
+{
+    if (!A_IsAdmin)
+    {
+        MsgBox, % "This needs to be run in Administrator mode for it to properly work."
+        ; Run *RunAs "%A_ScriptFullPath%"
+        ExitApp
+    }
+}
 
-; if not A_IsAdmin
-; {
-;     Run *RunAs "%A_ScriptFullPath%"
-;     ExitApp
-; }
 
 ; |============================= Read Config from Local User Saved Data =============================|
 ; -> Declare Config Standard Variables
@@ -40,8 +43,7 @@ Global ConfigFullPath           := ConfigDir "user.preferences"
 Global targetPointer      := { x: _IniRead(ConfigFullPath, "targetPointer",   "x"), y: _IniRead(ConfigFullPath, "targetPointer",   "y"), c: _IniRead(ConfigFullPath, "targetPointer",   "c") }
 Global selfManaPointer    := { x: _IniRead(ConfigFullPath, "selfManaPointer", "x"), y: _IniRead(ConfigFullPath, "selfManaPointer", "y"), c: _IniRead(ConfigFullPath, "selfManaPointer", "c") }
 Global deathPointer       := { x: _IniRead(ConfigFullPath, "deathPointer",    "x"), y: _IniRead(ConfigFullPath, "deathPointer",    "y"), c: _IniRead(ConfigFullPath, "deathPointer",    "c") }
-Global Pointers := {TargetPointer: targetPointer, SelfManaPointer: selfManaPointer, DeathPointer: deathPointer}
-; Debug -> MsgBox, % "targetPointer.x -> " targetPointer.x " | targetPointer.y -> " targetPointer.y " | targetPointer.c -> " targetPointer.c
+Global Pointers := { TargetPointer: targetPointer, SelfManaPointer: selfManaPointer, DeathPointer: deathPointer }
 
 ; Load Modules (To be done as an dynamic Module Loader in the future)
 ; Something like Modules := LoadModules(ModulesDirectory)
@@ -49,14 +51,15 @@ Global Pointers := {TargetPointer: targetPointer, SelfManaPointer: selfManaPoint
 Global Modules := { TargetFinder: _IniRead(ConfigFullPath, "EnabledModules", "TargetFinder") }
 
 
-; |============================= GUI Setup =============================|
 ; -> Check if Targeted Game is Open
-Game_Handle := WinExist("ahk_exe archeage.exe")
-if (!Game_Handle) {
+Game_Handle := WinExist("ahk_class ArcheAge")
+WinGetTitle, Game_Window_Title, "ahk_id %Game_Handle%"
+if (!Game_Handle) { ; If the targeted game isn't found, Exit.
     MsgBox, Archeage not found, quitting.
     ExitApp, 704 
 }
 
+; |=================================== GUI Setup ===================================|
 ; -> Create a GUI, name it by 1 and set it as LastFound to iterate with WinSet
 Gui, 1:New,     +HwndGui_Handle +AlwaysOnTop +Parent%Game_Handle% -Caption +LastFound
 Gui, Add, Tab3, x5 y30 w290 h230, Preferences|Spells|Pointers|Modules
@@ -69,10 +72,7 @@ WinSet, Style, +0x0         ; Adds WS_OVERLAPPED
 WinSet, Style, -0x10000     ; Removes WS_MAXIMIZE 
 WinSet, Style, -0x20000000  ; Removez WS_MINIMIZE 
 WinSet, Style, +0x800000    ; 
-WinSet, Style, +0x10000000L ; Add WS_VISIBLE
-
-Gui,    Color,  White       ; Set Main BG Color to Dark Blue
-Gui,    Font,   White       ; Set font Styling
+Gui,    Color,  Gray        ; Set Main BG Color to Dark Blue
 
 ; Non-tab specific Controls
 Gui, Tab
@@ -80,55 +80,19 @@ Gui, Add, Text,     x150 y15 cBlack, Press [F9] to toggle this GUI. ; Header Tex
 Gui, Add, Button, w100 h20 x190 y270 gSaveRoutine, Save ; Save Config Button
 
 ; Spell Tab Controls
+#Include, GUI/Tabs/Spells.ahk
 
-; Pointers Tab Controls
-Gui, Tab, Pointers
-For key, value in Pointers
-{
-    color := SubStr(value.c, 3)
-    Gui, Font, Bold
-    Gui, Add, Text, w200 vControl_Text%key% c%color%, % "X: [" value.x "] Y: [" value.y "] C: [" color  "]"
-    
-    Gui, Font
-    Gui, Add, Button, w120 gSet%key%Routine, Set %key%
-    Gui, Font
-}
+; Pointer Tab Controls
+#Include, GUI/Tabs/Pointers.ahk
 
 ; Preferences Tab Controls
-Gui, Tab, Preferences
-Gui, Add, Text, x+5 y+5 r2 w210, User Preferences                                       Do not forget to hit SAVE before exiting.
-Gui, Add, Checkbox,  vCheckbox_EnabledAction gToggleAction, Enable Guide
+#Include, GUI/Tabs/Preferences.ahk
 
 ; Modules Tab Controls
-Gui, Tab, Modules 
-Gui, Add, Text, x+5 y+5 , Enabled Modules
+#Include, GUI/Tabs/Modules.ahk
 
-For key, value in Modules
-{
-    if (value == 1) {
-        Gui, Add, CheckBox, vCheckbox_%key% gModuleChangedRoutine Checked, %key%
-    } else {
-        Gui, Add, CheckBox, vCheckbox_%key% gModuleChangedRoutine, %key%
-    }
-}
-; Gui, Add, CheckBox, x15 y55 vC_ToBeDone         gModChangedRoutine, To Be Done
-
-; Declares SubMenus and their Options
-Menu, File_SMenu,   Add,    &Save,     SaveRoutine
-Menu, File_SMenu,   Add,    &Exit,     ExitRoutine
-Menu, Tools_SMenu,  Add,    &Debug,    DebugRoutine
-Menu, Help_SMenu,   Add,    &About,    AboutRoutine
-
-; Adds Submenus to MenuBar
-Menu, MenuBar,      Add,    &File,     :File_SMenu
-Menu, MenuBar,      Add,    &Tools,    :Tools_SMenu
-Menu, MenuBar,      Add,    &Help,     :Help_SMenu
-
-; Define MenuBar Styles
-Menu, MenuBar,      Color,  White
-
-; Append menu "MenuBar" to LastFound Gui
-Gui, Menu, MenuBar 
+; GUI Menu
+#Include, GUI/Menu/MenuBar.ahk
 
 ; Show LastFound Gui
 Gui, Font, OxFFFFFF
@@ -158,17 +122,21 @@ Loop {
     MouseGetPos, mPosX, mPosY
     ; ToolTip, % "Current State:" Current_State " | Next_State := " Next_State, 300, 25
     
-    if(WinActive(ahk_id %Game_Handle%))
+
+    if(WinActive("ahk_id" Game_Handle))
     {
-        if (IsDead())
-        {
-            Pause, On
-        }
+    ToolTip, % "Pointer x" targetPointer.x " | " targetPointer.y " | " targetPointer.c, 300, 25
+        
         
         if (Current_State == state.ACTIVE)
         {
+            if (IsDead()) {
+                ToggleGui()
+                WarnDeath()
+            }
+
             ; -> Doesn't have a Target
-            if (!HasTarget(targetPointer)) 
+            if (!HasTarget()) 
             {
                 Send, {q Up}
                 
@@ -221,7 +189,7 @@ Loop {
                     TryFindTarget(Game_Handle) ; -> Nothing to cast off-Combat, no priorities -> Try and Find a new Target
                 }
 
-                if (!HasTarget(targetPointer))
+                if (!HasTarget())
                 {
                     SentientSleep(2000)
                 } 
@@ -290,76 +258,12 @@ Loop {
     ToolTip, 
 }
 
-
-; Setter Functions --> to be moved to a different file and refactored into functions that return a object containing the specific requested properties.
-SetTargetBar()
+HasTarget()
 {
-    MouseGetPos, mPosX, mPosYq
-    While !GetKeyState("LButton") {
-        MouseGetPos, mPosX, mPosY
-        ToolTip, Click on the HP Bar, mPosX + 30, mPosY + 40
-    }
+    MsgBox, % "x "targetPointer.x "y " targetPointer.y "c " targetPointer.c
+    PixelGetColor, current, targetPointer.x, targetPointer.y, RGB
     
-    targetBarX := mPosX
-    targetBarY := mPosY
-    PixelGetColor, targetBarC, mPosX, mPosY
-
-
-    IniWrite, %targetBarX%, archerArcher.ini, targetBar, x
-    IniWrite, %targetBarY%, archerArcher.ini, targetBar, y
-    IniWrite, %targetBarC%, archerArcher.ini, targetBar, c
-
-    ToolTip, 
-
-    
-}
-
-SetSelfManaToExpend()
-{
-    MouseGetPos, mPosX, mPosYq
-    While !GetKeyState("LButton") {
-        MouseGetPos, mPosX, mPosY
-        ToolTip, Click on your MPBar at a middle point for casts, mPosX + 30, mPosY + 40
-    }
-    
-    manaExpendX := mPosX
-    manaExpendY := mPosY
-    PixelGetColor, manaExpendc, mPosX, mPosY
-
-
-    IniWrite, %manaExpendX%, archerArcher.ini, manaExpend, x
-    IniWrite, %manaExpendY%, archerArcher.ini, manaExpend, y
-    IniWrite, %manaExpendC%, archerArcher.ini, manaExpend, c
-
-    ToolTip, 
-}
-
-SetDeathWindow()
-{
-    MouseGetPos, mPosX, mPosYq
-    While !GetKeyState("LButton") {
-        MouseGetPos, mPosX, mPosY
-        ToolTip, Click on your Death Window, mPosX + 30, mPosY + 40
-    }
-    
-    deathWinPosX := mPosX
-    deathWinPosY := mPosY
-    PixelGetColor, deathWinPosC, mPosX, mPosY
-
-
-    IniWrite, %deathWinPosC%, archerArcher.ini, deathWin, x
-    IniWrite, %deathWinPosY%, archerArcher.ini, deathWin, y
-    IniWrite, %deathWinPosC%, archerArcher.ini, deathWin, c
-
-    ToolTip, 
-}
-
-HasTarget(pointer)
-{
-    PixelGetColor, current, pointer.x, pointer.y
-    ; MsgBox, % "current is [" current "] and target is [" targetBarC "]"
-
-    if (current == pointer.c) {
+    if (current == targetPointer.c) {
         Return True
     } else {
         Return False
@@ -368,13 +272,11 @@ HasTarget(pointer)
 
 IsDead()
 {
-    PixelGetColor, curr, deathWinPosX, deathWinPosY
+    PixelGetColor, cur, deathPointer.x, deathPointer.y, RGB
 
-    if (curr == deathWinPosC)
+    if (cur == deathPointer.c)
     {
-        MsgBox, Died. Pausing script.
-        Pause, On
-
+        ; MsgBox, Died. Pausing script.
         Return True
     } 
     else 
@@ -383,58 +285,30 @@ IsDead()
     }
 }
 
-SentientSleep(timeInMs)
-{
+SentientSleep(timeInMs) {
+    ; What should happen before the loop starts
+
     startTime := A_TickCount ; 1000
     current :=  ; 1001 - 1000
     
     While ((A_TickCount - startTime) <= timeInMs)
     {
-        if (HasTarget(targetPointer))
-        {
+        ; Do Function Checks every 50s to Break the SentientSleep if needed
+        if (HasTarget()) {
             Break
-        } else {
-            Sleep, 50
         }
-        ; Do Function Checks to Break the SentientSleep if needed
-        ; if (HaveTarget())
-        ; {
-        ;     Break
-        ; } else {
-        ;     Sleep, 100
-        ; }
+
+        Sleep, 50
     }
 
-    ; Whatever happens after the time specified
+    ; Whatever happens after the loop time
 }
 
 
 ; -> Script Functions
-TogglePause()
+WarnDeath()
 {
-    Pause, Toggle
-    Send, {q Up} ; -> Clear Endless Arrow Key
-}
-
-Configurate()
-{
-    SetTargetBar()
-    Sleep, 500
-    SetSelfManaToExpend()
-}
-
-_IniRead(filename, section, key)
-{
-    IniRead, output, %filename%, %section%, %key% , null
-    Return %output%
-}
-
-_IniWrite(value, filename, section, key)
-{
-    extractedValue := %value%
-    
-    IniWrite, %value%, %filename%, %section%, %key%
-    Return 1
+    ; Do Something to warn the user about his character Death, besides pausing execution
 }
 
 ToggleGui()
@@ -447,6 +321,7 @@ ToggleGui()
         Gui, Hide
         Gui_Visible := False
         Current_State := Next_State
+        WinActivate, "ahk_exe notepad.exe"
     }
     Else 
     {
@@ -457,6 +332,7 @@ ToggleGui()
 
         Next_State := Current_State   ; Stores Current_State so it can start over when the GUI is minimized again
         Current_State := state.PAUSED ; Sets Current_State to PAUSED
+        WinActivate, 
     }  
 }
 
@@ -511,62 +387,7 @@ ModuleChangedRoutine:
     Return
 }
 
-
-
-SetTargetPointerRoutine:
-{
-    Gui, Hide
-    MouseGetPos, mPosX, mPosYq
-    While !GetKeyState("LButton") {
-        MouseGetPos, mPosX, mPosY
-        ToolTip, Click on the beginning of your target Mana Bar, mPosX + 30, mPosY + 40
-    }
-    
-    
-    PixelGetColor, curColor, mPosX, mPosY
-    targetPointer.x := mPosX
-    targetPointer.y := mPosY
-    targetPointer.c := curColor
-
-    
-    _IniWrite(targetPointer.x, ConfigFullPath, "targetPointer", "x")
-    _IniWrite(targetPointer.y, ConfigFullPath, "targetPointer", "y")
-    _IniWrite(targetPointer.c, ConfigFullPath, "targetPointer", "c")
-    
-    Gui, Show
-
-    ToolTip, 
-    
-    UpdateAllPointers()
-}
-
-SetSelfManaPointerRoutine:
-{
-
-}
-
-SetDeathPointerRoutine:
-{
-
-}
-
-UpdateAllPointers()
-{
-    ; Update Text Control Appearance
-    For key, value in Pointers
-    {
-        color := value.c
-        
-        
-        Gui, Font, c%color% Bold
-        GuiControl, Font, Control_Text%key%
-        GuiControl, Text, Control_Text%key% , % "X: [" value.x "] Y: [" value.y "] C: [" value.c  "]"
-        
-        
-    }
-    
-    Gui, Submit, NoHide     
-}
+#Include, Routines/Setters/Pointers.ahk
 
 ToggleAction:
 {
@@ -582,10 +403,8 @@ ToggleAction:
 
 DebugF()
 {
-    MsgBox, % "Gui_Visible: " Gui_Visible " | Current_State: " Current_State
+    MsgBox, % "Next_State: " Next_State " | Current_State: " Current_State " | " 
 }
 
-!F5::Configurate() ; -> Boot up the configuration setup for Target & Self bars localization
-!F6::SetDeathWindow()
 F8::DebugF()
 F9::ToggleGui()

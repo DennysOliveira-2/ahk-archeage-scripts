@@ -12,7 +12,7 @@ Global concussive_cd   := 31000
 IsManaHigh(pointer)
 {
     ; Get current
-    PixelGetColor, currentColor, pointer.x, pointer.y
+    PixelGetColor, currentColor, pointer.x, pointer.y, RGB
 
     if (currentColor == pointer.c) ; If mana is ABOVE the point declared as enough, 
     {
@@ -37,21 +37,21 @@ TryFindTarget(gameWinId)
         FindSkills()
 
         ; 90 degrees
-        If(!HasTarget(targetPointer))
+        If(!HasTarget())
         {
             RotateClockwise90()
             FindSkills()
         }
 
         ; 180 degrees
-        If(!HasTarget(targetPointer))
+        If(!HasTarget())
         {
             RotateClockwise90()
             FindSkills()
         }
 
         ; 270 degrees
-        If(!HasTarget(targetPointer))
+        If(!HasTarget())
         {
             RotateClockwise90()
             FindSkills()
@@ -91,7 +91,7 @@ FindSkills()
     Sleep, 25
 
     ; -> Try LONG RANGE
-    if (!HasTarget(targetPointer) And IsManaHigh(selfManaPointer)) {
+    if (!HasTarget() And IsManaHigh(selfManaPointer)) {
             if (IsOffCooldown(snipe_timer, snipe_cd))
             {
                 Send, 4
