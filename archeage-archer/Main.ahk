@@ -1,5 +1,6 @@
 ﻿; To-DO:
 ; [X] Dynamic Module Loading
+; [ ] Dynamic Tab Adding for Modules that require a tab to configure
 ; [ ] Set Module Standards Example for Users to create their modules based on it
 ; [ ] Load Module Description from Descriptor
 ; [ ] Implement Basic Modules
@@ -89,6 +90,12 @@ if (!Game_Handle) { ; If the targeted game isn't found, Exit.
 ; -> Create a GUI, name it by 1 and set it as LastFound to iterate with WinSet
 Gui, 1:New,     +HwndGui_Handle +AlwaysOnTop +Parent%Game_Handle% -Caption +LastFound
 Gui, Add, Tab3, x5 y30 w290 h230 vTabManager , Preferences|Spells|Pointers|Modules
+
+for key, value in Modules 
+{
+   
+}
+
 Gui, Tab
 
 ; -> Define Gui1 Styles
@@ -128,6 +135,7 @@ Gui, Show, x0 y0 w300 h300, SetupGui
 
 ; |============================= Automation Functionalities =============================|
 ; Timers Boot Up -> Still needed to declare them as most functions will reference them and change their values globally - haven't found a better way to design this yet.
+timer_combat    := A_TickCount
 timer_endless   := A_TickCount
 timer_blazing   := A_TickCount
 timer_charged   := A_TickCount
@@ -135,6 +143,7 @@ timer_meditate  := A_TickCount
 timer_thwart    := A_TickCount
 timer_hymn      := A_TickCount
 timer_gcd       := A_TickCount
+timer_snipe     := A_TickCount  
 
 ; Cooldowns (in milliseconds) -> To be set in a GUI for better UX in the future
 cd_thwart   := 16000
@@ -142,19 +151,20 @@ cd_meditate := 35000
 cd_blazing  := 10000
 cd_charged  := 13000
 cd_hymn     := 16000
+cd_snipe    := 40000
 cd_global   := 1000
 gcd         := 650
+Global wasOutOfCombat := true
 
 Loop { 
     MouseGetPos, mPosX, mPosY
     ; ToolTip, % "Current State:" Current_State " | Next_State := " Next_State, 300, 25
     
 
-    if(WinActive("ahk_id" Game_Handle))
-    {
-    ; ToolTip, % "Pointer x" targetPointer.x " | " targetPointer.y " | " targetPointer.c, 300, 25
+    if(WinActive("ahk_id" Game_Handle)) {
+        ; ToolTip, % "Pointer x" targetPointer.x " | " targetPointer.y " | " targetPointer.c, 300, 25
         
-        
+        ToolTip, % timeInCombat, 300, 25
         if (Current_State == state.ACTIVE)
         {
             if (IsDead()) {
@@ -165,25 +175,16 @@ Loop {
             ; -> Doesn't have a Target
             if (!HasTarget()) 
             {
+                                
                 Send, {q Up}
-                
-                
                 if (IsOffCooldown(timer_meditate, cd_meditate)) ; -> Is [Meditate] off-Cooldown? Cast it.
                 {
                     Send, {q Up} ; -> Clear Endless Arrow
-                    
                     Sleep, 150
-                    
-                    
                     Sleep, 250
                     Send, 5
-                    SentientSleep(1000)
-                    
                     SentientSleep(4000) ; -> Wait for Cast -> should create a function for SentientWait (sleep but check something )
-
-                    
                     timer_meditate := A_TickCount 
-                    
                 } 
                 else if (IsOffCooldown(timer_thwart, cd_thwart)) ; -> Is [Thwart] off-Cooldown? Cast it.
                 {
@@ -211,74 +212,35 @@ Loop {
                     
                 } ; 
 
-                if (Modules.TargetFinder == 1)
-                {
-                    TryFindTarget(Game_Handle) ; -> Nothing to cast off-Combat, no priorities -> Try and Find a new Target
+                if (Modules.TargetFinder.Enabled == 1) {
+                    TryFindTarget(Game_Handle) 
                 }
 
-                if (!HasTarget())
-                {
-                    SentientSleep(2000)
-                } 
-                else 
-                {
-                    Sleep, %gcd%
-                }
+                if (!HasTarget()) { ; In case Target Finder did not find any targets, wait a little bit before doing it again with SentientSleep
+                    SentientSleep(1000)
+                }                 
             } 
-            else ; Has a Target
+            else ; -> Has a Target
             {
                 
-                
+                if (IsOffCooldown(timer_thwart, cd_thwart)) {
+                    Send, {q Up} ; -> Clear Endless Arrow
+                    Sleep, 500
+                    Send, 3
 
-                if (IsOffCooldown(timer_thwart, cd_thwart))
+                    Sleep, 100
+                }
+                else if (IsOffCooldown(timer_snipe, cd_snipe) && timeInCombat > 20000)
                 {
                     Send, {q Up} ; -> Clear Endless Arrow
                     Sleep, 500
-
-                    Send, 3
-                                    Send, 4
-
-
-                    timer_thwart := A_TickCount
+                    Send, 4
+                    
                     Sleep, 100
                 }
-                ; else if (isOffCooldown(timer_charged, cd_charged)) 
-                ; {
-                ;     Send, {q Up} ; -> Clear Endless Arrow
-                ;     Sleep, 450
-
-                ;     Send, 2
-                ;     Sleep, 25
-                ;     Send, 2
-                ;     Sleep, 25
-                ;     Send, 2
-
-                ;     timer_charged := A_TickCount
-                ;     Sleep, 100
-                ; }
-                ; else if (IsOffCooldown(timer_blazing, cd_blazing)) 
-                ; {
-                ;     Send, {q Up} ; -> Clear Endless Arrow
-                ;     Sleep, 450
-
-                ;     Send, 1
-                ;     Sleep, 25
-                ;     Send, 1
-                ;     Sleep, 25
-                ;     Send, 1
-
-                ;     timer_blazing := A_TickCount
-                ;     Sleep, 100
-
-                ; } 
-                
-                
-                
 
                 Sleep, 10
-
                 Send, {q Down}
-
             }
         }
     }
@@ -287,7 +249,7 @@ Loop {
 
 HasTarget()
 {
-    MsgBox, % "x "targetPointer.x "y " targetPointer.y "c " targetPointer.c
+    ; MsgBox, % "x "targetPointer.x "y " targetPointer.y "c " targetPointer.c
     PixelGetColor, current, targetPointer.x, targetPointer.y, RGB
     
     if (current == targetPointer.c) {
@@ -316,18 +278,15 @@ SentientSleep(timeInMs) {
     ; What should happen before the loop starts
 
     startTime := A_TickCount ; 1000
-    current :=  ; 1001 - 1000
-    
+        
     While ((A_TickCount - startTime) <= timeInMs)
     {
         ; Do Function Checks every 50s to Break the SentientSleep if needed
         if (HasTarget()) {
             Break
         }
-
         Sleep, 50
     }
-
     ; Whatever happens after the loop time
 }
 
@@ -392,6 +351,7 @@ AboutRoutine:
     Return
 }
 
+; Every time any Modules get Enabled or Disabled, this Routine will be called.
 ModuleChangedRoutine:
 {
     Gui, Submit, NoHide
@@ -411,15 +371,28 @@ ModuleChangedRoutine:
     {
         if(key)
         {
-            ; Updates current Module state into Modules object    
+            ; Updates current Module state into Modules object
+            if (Modules[key].Enabled == 0) 
+            {
+                wasEnabled := false
+            } else if (Modules[key].Enabled == 1){
+                wasEnabled := true
+            }
+
             Modules[key].Enabled := Checkbox_%key%
             OutputDebug, % key " is now " Modules[key].Enabled   
             
             _IniWrite(Modules[key].Enabled, ConfigFullPath, "EnabledModules", Modules[key].descriptor.name)
-                        
+
+            if (wasEnabled := false)
+            {   
+                ; create btn
+            } else 
+            {
+                ; remove btn
+            }
             ; OutputDebug, % "Module." key ".descriptor.name: " Modules[key].descriptor.name
             ; OutputDebug, % "Module." key ".Enabled: " Modules[key].Enabled
-            
         }
     }
     Return
@@ -433,7 +406,9 @@ ToggleAction:
     if (Checkbox_EnabledAction == 1)
     {
         Next_State := state.ACTIVE 
-    } else {
+    } 
+    else 
+    {
         Next_State := state.PAUSED
     }
     Return
@@ -443,6 +418,7 @@ DebugF()
 {
     MsgBox, % "Next_State: " Next_State " | Current_State: " Current_State " | " 
 }
+
 
 F8::DebugF()
 F9::ToggleGui()
