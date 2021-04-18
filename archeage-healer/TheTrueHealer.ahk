@@ -91,7 +91,7 @@ Gui, Menu, MenuBar ; Show MenuBar
 
 
 ; Show Gui1
-; Gui, Show, x0 y0 w300 h200, SetupGui
+Gui, Show, x0 y0 w300 h200, SetupGui
 Gui, Font, OxFFFFFF
 
 Pause
